@@ -1,4 +1,4 @@
-import { exchangeCode } from '@/lib/discord'
+import { exchangeCode } from '../../lib/discord'
 
 export default async function handler(req, res) {
   try {
