@@ -17,17 +17,30 @@ const exchangeCode = async (code) => {
 }
 
 export default async function handler(req, res) {
+  const code = req.query.code;
+  if (!code) return res.status(400).json({ error: "No authorization code provided" });
+
   try {
-    const { code } = req.query
-    const tokens = await exchangeCode(code)
-    
-    res.setHeader('Set-Cookie', [
-      `discord_token=${tokens.access_token}; Path=/; HttpOnly; SameSite=Lax`,
-      `discord_refresh=${tokens.refresh_token}; Path=/; HttpOnly; SameSite=Lax`
-    ])
-    
-    res.redirect('/')
-  } catch (error) {
-    res.redirect('/?error=auth_failed')
+    const response = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: process.env.REDIRECT_URI,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) return res.status(500).json({ error: "Failed to exchange token", details: data });
+
+    // Store token in a cookie (or return to frontend)
+    res.setHeader("Set-Cookie", `token=${data.access_token}; Path=/; HttpOnly`);
+    return res.redirect("/");
+  } catch (err) {
+    console.error("Error exchanging token:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
